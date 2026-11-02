@@ -63,6 +63,33 @@ button:focus-visible,.btn:focus-visible,.pilih:focus-visible{outline:3px solid v
 .aksi{display:flex;gap:10px;flex-wrap:wrap}
 .aksi .btn{flex:1 1 200px}
 .aksi .alt{background:transparent;color:var(--ink);border:2px solid var(--ink)}
+.ringkas+.lihat{margin-top:16px}
+.lihat{background:transparent;color:var(--ink);border:2px solid var(--ink);padding:11px 18px}
+:root{--benar:#18794e;--salah:#c0392b;--kosong:#9aa3b5}
+@media (prefers-color-scheme:dark){:root{--benar:#4cc38a;--salah:#ff7a6b;--kosong:#6b7691}}
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(10,16,30,.72);display:flex;align-items:flex-start;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 14px 16px;overflow:auto;animation:muncul .2s ease-out}
+.overlay[hidden]{display:none}
+@keyframes muncul{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){.overlay{animation:none}}
+.sheet{position:relative;width:100%;max-width:640px;background:var(--card);border-radius:16px;padding:22px 22px 24px;margin:auto 0}
+.sheet-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:6px}
+.sheet h2{font:800 1.5rem/1.15 "Bricolage Grotesque",sans-serif;margin:0}
+.sheet .sub{color:var(--muted);margin:2px 0 0;font-size:.9375rem}
+.tutup{flex:none;background:var(--ink);color:var(--card);padding:9px 16px;border-radius:999px;font-size:.9rem}
+.judulcetak{margin:18px 0 0;padding-top:14px;border-top:2px solid var(--ink);font-weight:700}
+.grafik{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:14px}
+.donat{text-align:center;padding:14px 8px;border:1px solid var(--line);border-radius:12px}
+.donat svg{width:150px;max-width:100%;height:auto;display:block;margin:6px auto 8px}
+.donat .pct{font:800 26px "Bricolage Grotesque",sans-serif;fill:var(--ink)}
+.donat .lbl{font:500 11px "Plus Jakarta Sans",sans-serif;fill:var(--muted)}
+.donat h3{margin:0;font:800 1.05rem "Bricolage Grotesque",sans-serif}
+.donat small{color:var(--muted)}
+.angka{display:flex;justify-content:center;gap:14px;margin-top:8px;flex-wrap:wrap}
+.angka span{display:flex;align-items:center;gap:6px;font-size:.9rem}
+.angka i{width:11px;height:11px;border-radius:50%;display:inline-block}
+.angka b{font-variant-numeric:tabular-nums}
+.sheet-foot{margin-top:18px;display:flex;justify-content:flex-end}
+@media (max-width:520px){.grafik{grid-template-columns:1fr}}
 @media (max-width:520px){form{grid-template-columns:1fr}.mapel{grid-template-columns:1fr 3ch;row-gap:4px}.track{grid-column:1/-1;order:3}}
 </style>
 </head>
@@ -98,11 +125,28 @@ button:focus-visible,.btn:focus-visible,.pilih:focus-visible{outline:3px solid v
   <div id="status" aria-live="polite"></div>
 </main>
 
+<div id="overlay" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="ovJudul">
+  <div class="sheet">
+    <div class="sheet-top">
+      <div><h2 id="ovJudul">Hasil Try Out</h2><p class="sub" id="ovSub"></p></div>
+      <button type="button" class="tutup" id="tutup">Close</button>
+    </div>
+    <p class="judulcetak">Grafik benar dan salah</p>
+    <div class="grafik" id="ovGrafik"></div>
+    <div class="sheet-foot"><button type="button" class="tutup" id="tutup2">Close</button></div>
+  </div>
+</div>
+
 <script>
 // ====== PENGATURAN ======
 var SCORE_URL = "";      // alamat Apps Script (/exec). Kosong = pakai data contoh.
 var WA_NUMBER = "";      // nomor WhatsApp admin, format 628xxxxxxxxxx. Kosong = pengguna memilih kontak sendiri.
 var SKOR_MAKS = 100;
+// Mode simulasi (aktif selama SCORE_URL kosong): klik "Cari hasil" langsung menampilkan grafik
+// dengan nilai contoh di bawah. Nama, jenjang, kelas, dan sekolah diambil dari isian.
+var SIMULASI = !SCORE_URL;
+var SIMULASI_SOAL = 50;                                   // jumlah soal tiap mapel
+var SIMULASI_NILAI = {"B. Indonesia":100, "Matematika":80}; // persen benar
 var KELAS_BAWAAN = {SD:["3","4","5","6"], SMP:["7","8","9"], SMA:["10","11","12"]};
 var KOLOM_INFO = ["nomor","nama","sekolah","jenjang","kelas","total","rata","rata-rata","peringkat"];
 
@@ -110,7 +154,7 @@ var DATA = [
   {nama:"Nabila Putri",sekolah:"SDN 1 Purworejo",jenjang:"SD",kelas:"6",Matematika:86,IPAS:90,"B. Indonesia":88,"B. Inggris":80},
   {nama:"Fikri Ramadhan",sekolah:"SDN 1 Purworejo",jenjang:"SD",kelas:"6",Matematika:78,IPAS:82,"B. Indonesia":85,"B. Inggris":74},
   {nama:"Keysha Anindya",sekolah:"SDN 3 Purworejo",jenjang:"SD",kelas:"5",Matematika:92,IPAS:88,"B. Indonesia":90,"B. Inggris":84},
-  {nama:"Rudi Saputra",sekolah:"SMAN 1 Purworejo",jenjang:"SMA",kelas:"12",Matematika:85,Fisika:72,Kimia:78,"B. Inggris":88},
+  {nama:"Rudi Saputra",sekolah:"SMAN 1 Purworejo",jenjang:"SMA",kelas:"12",Matematika:85,"Matematika Benar":34,"Matematika Salah":6,Fisika:72,Kimia:78,"B. Indonesia Benar":35,"B. Indonesia Salah":5},
   {nama:"Aulia Rahma",sekolah:"SMAN 1 Purworejo",jenjang:"SMA",kelas:"12",Matematika:88,Fisika:76,Kimia:81,"B. Inggris":92},
   {nama:"Raka Pratama",sekolah:"SMAN 7 Purworejo",jenjang:"SMA",kelas:"12",Matematika:94,Fisika:90,Kimia:87,"B. Inggris":79},
   {nama:"Naufal Hakim",sekolah:"SMAN 1 Purworejo",jenjang:"SMA",kelas:"12",Matematika:70,Fisika:65,Kimia:72,"B. Inggris":80},
@@ -129,12 +173,31 @@ function norm(s){ return String(s == null ? "" : s).trim().toLowerCase().replace
 function kls(s){ var m = String(s == null ? "" : s).match(/\d+/); return m ? m[0] : String(s || "").trim(); }
 function pesan(t, err){ $("status").innerHTML = '<div class="pesan'+(err?' err':'')+'">'+t+'</div>'; }
 
-function mapelDari(row){
-  var out = [];
+var BS_RE = /^(.*?)[\s_\-]*(benar|salah|kosong)$/i;
+function kunci(s){ return String(s).toLowerCase().replace(/[^a-z0-9]/g, ""); }
+function bsDari(row){
+  var g = {}, urut = [];
   Object.keys(row).forEach(function(k){
-    if(KOLOM_INFO.indexOf(k.trim().toLowerCase()) >= 0) return;
+    var m = k.trim().match(BS_RE);
+    if(!m || !m[1].trim()) return;
+    var id = kunci(m[1]), v = parseFloat(String(row[k]).replace(",", "."));
+    if(isNaN(v)) return;
+    if(!g[id]){ g[id] = {nama:m[1].trim(), benar:0, salah:0, kosong:0}; urut.push(id); }
+    g[id][m[2].toLowerCase()] = v;
+  });
+  return urut.map(function(id){ return g[id]; });
+}
+function mapelDari(row){
+  var out = [], ada = {};
+  Object.keys(row).forEach(function(k){
+    if(KOLOM_INFO.indexOf(k.trim().toLowerCase()) >= 0 || BS_RE.test(k.trim())) return;
     var v = parseFloat(String(row[k]).replace(",", "."));
-    if(!isNaN(v)) out.push({nama:k, skor:v});
+    if(!isNaN(v)){ out.push({nama:k, skor:v}); ada[kunci(k)] = 1; }
+  });
+  // mapel yang hanya punya kolom benar/salah: nilai dihitung dari persentase benar
+  bsDari(row).forEach(function(b){
+    var n = b.benar + b.salah + b.kosong;
+    if(!ada[kunci(b.nama)] && n > 0) out.push({nama:b.nama, skor:Math.round(b.benar / n * 100)});
   });
   return out;
 }
@@ -172,8 +235,39 @@ function muatData(){
 
 function linkWA(teks){ return "https://wa.me/" + WA_NUMBER.replace(/\D/g,"") + "?text=" + encodeURIComponent(teks); }
 
+var fokusAwal = null;
+function donat(b){
+  var n = b.benar + b.salah + b.kosong, R = 54, C = 2 * Math.PI * R, acc = 0;
+  var seg = [[b.benar,"var(--benar)"],[b.salah,"var(--salah)"],[b.kosong,"var(--kosong)"]].map(function(s){
+    var len = n ? s[0] / n * C : 0, el = '<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="'+s[1]+'" stroke-width="16" stroke-dasharray="'+len.toFixed(2)+' '+(C-len).toFixed(2)+'" stroke-dashoffset="'+(-acc).toFixed(2)+'" transform="rotate(-90 70 70)"/>';
+    acc += len; return s[0] > 0 ? el : "";
+  }).join("");
+  var pct = n ? Math.round(b.benar / n * 100) : 0;
+  return '<div class="donat"><h3>'+esc(b.nama)+'</h3><small>'+n+' soal</small>' +
+    '<svg viewBox="0 0 140 140" role="img" aria-label="'+esc(b.nama)+': '+b.benar+' benar, '+b.salah+' salah'+(b.kosong?', '+b.kosong+' kosong':'')+'">' +
+    '<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="var(--bar-bg)" stroke-width="16"/>' + seg +
+    '<text x="70" y="72" text-anchor="middle" class="pct">'+pct+'%</text><text x="70" y="90" text-anchor="middle" class="lbl">benar</text></svg>' +
+    '<div class="angka"><span><i style="background:var(--benar)"></i>Benar <b>'+b.benar+'</b></span><span><i style="background:var(--salah)"></i>Salah <b>'+b.salah+'</b></span>' +
+    (b.kosong ? '<span><i style="background:var(--kosong)"></i>Kosong <b>'+b.kosong+'</b></span>' : '') + '</div></div>';
+}
+function bukaGrafik(row, bs){
+  $("ovSub").innerHTML = esc(row.sekolah)+' &middot; '+esc(row.jenjang)+' kelas '+esc(row.kelas);
+  $("ovJudul").textContent = row.nama;
+  $("ovGrafik").innerHTML = bs.map(donat).join("");
+  fokusAwal = document.activeElement;
+  $("overlay").hidden = false; document.body.style.overflow = "hidden";
+  $("tutup").focus();
+}
+function tutupGrafik(){
+  $("overlay").hidden = true; document.body.style.overflow = "";
+  if(fokusAwal && fokusAwal.focus) fokusAwal.focus();
+}
+$("tutup").onclick = tutupGrafik; $("tutup2").onclick = tutupGrafik;
+$("overlay").addEventListener("click", function(e){ if(e.target === this) tutupGrafik(); });
+document.addEventListener("keydown", function(e){ if(e.key === "Escape" && !$("overlay").hidden) tutupGrafik(); });
+
 function tampilkan(row){
-  var m = mapelDari(row), total = totalDari(row);
+  var m = mapelDari(row), total = totalDari(row), bs = bsDari(row);
   var rata = m.length ? m.reduce(function(a,b){ return a + b.skor; }, 0) / m.length : 0;
   var rKelas = peringkat(row, function(r){ return r.sekolah === row.sekolah && r.kelas === row.kelas; });
   var rSekolah = peringkat(row, function(r){ return r.sekolah === row.sekolah && r.jenjang === row.jenjang; });
@@ -188,6 +282,7 @@ function tampilkan(row){
     html += '<div class="mapel"><span>'+esc(x.nama)+'</span><div class="track" role="img" aria-label="'+esc(x.nama)+': '+x.skor+' dari '+SKOR_MAKS+'"><div class="fill" style="width:'+w+'%"></div></div><span class="skor">'+x.skor+'</span></div>';
   });
   html += '<dl class="ringkas"><div><dt>Total nilai</dt><dd>'+total+'</dd></div><div><dt>Rata-rata</dt><dd>'+rata.toFixed(1)+'</dd></div></dl>';
+  if(bs.length) html += '<button type="button" class="btn lihat" id="lihatGrafik">Lihat grafik benar-salah</button>';
 
   function baris(judul, ket, r){ return '<div class="rank-row"><b>'+judul+'</b><span>'+ket+'</span><div class="no">'+r.pos+' <small>dari '+r.dari+'</small></div></div>'; }
   html += '<section class="rank"><h3>Peringkatmu</h3>' +
@@ -207,10 +302,27 @@ function tampilkan(row){
     '<a class="btn" href="'+linkWA(pesanTO)+'" target="_blank" rel="noopener">Ingin Try Out lagi</a>' +
     '<a class="btn alt" href="'+linkWA(pesanPB)+'" target="_blank" rel="noopener">Ingin pembahasan Try Out</a></div></div></article>';
   $("status").innerHTML = html;
+  if(bs.length){
+    $("lihatGrafik").onclick = function(){ bukaGrafik(row, bs); };
+    bukaGrafik(row, bs);
+  }
+}
+
+function simulasi(){
+  var row = {nama:$("nama").value.trim(), jenjang:$("jenjang").value, kelas:$("kelas").value, sekolah:$("sekolah").value.trim()};
+  var bs = Object.keys(SIMULASI_NILAI).map(function(m){
+    var b = Math.round(SIMULASI_NILAI[m] / 100 * SIMULASI_SOAL);
+    return {nama:m, benar:b, salah:SIMULASI_SOAL - b, kosong:0};
+  });
+  $("status").innerHTML = '<p class="demo">Ini simulasi tampilan. Nilai pada grafik adalah contoh, sedangkan nama, jenjang, kelas, dan sekolah diambil dari isianmu.</p>' +
+    '<button type="button" class="btn lihat" id="lihatGrafik">Lihat grafik benar-salah</button>';
+  $("lihatGrafik").onclick = function(){ bukaGrafik(row, bs); };
+  bukaGrafik(row, bs);
 }
 
 $("form").addEventListener("submit", function(e){
   e.preventDefault();
+  if(SIMULASI) return simulasi();
   var n = norm($("nama").value), j = $("jenjang").value, k = $("kelas").value, s = norm($("sekolah").value);
   if(!ALL.length) return pesan("Data belum termuat. Muat ulang halaman lalu coba lagi.", true);
   var cocok = ALL.filter(function(r){ return r.jenjang === j && r.kelas === k && norm(r.sekolah) === s && norm(r.nama).indexOf(n) >= 0; }).slice(0, 8);
